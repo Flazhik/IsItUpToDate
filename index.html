@@ -70,18 +70,35 @@
       <div id="results" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 gy-4 gx-4"></div>
     </div>
     <script>
-      const API_URL = 'https://thunderstore.io/c/ultrakill/api/v1/package/';
+      const api = 'https://thunderstore.io/c/ultrakill/api/v1/package/';
+	  
       const lastMajorUpdate = Date.parse('2025-02-24T18:01:12.000000Z');
       const lastMinorUpdate = Date.parse('2025-03-26T15:25:26.000000Z');
+	  const exceptions = ["BepInEx-BepInExPack", "ebkr-r2modman", "sinai-dev-UnityExplorer", "marcelokula1-UnityExplorer", "LethalCompanyModding-UnityDebuggerAssistant"]
+	  
       let data = [];
-      fetch(API_URL).then(response => response.json()).then(json => {
+	  let modInput = document.getElementById('searchInput');
+	  
+      fetch(api).then(response => response.json())
+	  .then(json => {
         data = json;
-      }).catch(error => {
+      })
+	  .then(_ => {
+		  let queryParams = new URLSearchParams(window.location.search);
+		  if (queryParams.has('mod')) {
+		  let modInput = document.getElementById('searchInput');
+			modInput.value = queryParams.get('mod');
+			modInput.dispatchEvent(new Event('input'));
+		  }
+	  })
+	  .catch(error => {
         document.getElementById('results').innerHTML = '<div class="col"><div class="alert alert-danger">Failed to fetch data from Thunderstore</div></div>';
       });
-      document.getElementById('searchInput').addEventListener('input', function() {
+	  
+      modInput.addEventListener('input', function() {
         const query = this.value.trim().toLowerCase();
         const resultsDiv = document.getElementById('results');
+		
         resultsDiv.innerHTML = '';
         if (query.length < 3) return;
         const filtered = data.filter(entry => entry.name && entry.name.toLowerCase().includes(query));
@@ -95,19 +112,21 @@
           card.className = 'col';
           let entryClass, isItWorking, description;
           let updateDate = Date.parse(entry.versions[0].date_created);
-          if (updateDate < lastMajorUpdate) {
-            entryClass = 'bg-danger text-white';
-            isItWorking = 'UNLIKELY';
-            description = 'The latest mod version is older than the recent major ULTRAKILL release';
-          } else if (updateDate < lastMinorUpdate) {
-            entryClass = 'bg-warning';
-            isItWorking = 'MOST LIKELY';
-            description = 'The mod is up-to-date but its latest version is older than the recent ULTRAKILL patch';
-          } else {
-            isItWorking = 'WORKS';
-            description = 'The mod is up-to-date';
-            entryClass = 'bg-success text-white';
-          }
+		  
+		  if (updateDate > lastMinorUpdate || exceptions.includes(entry.full_name)) {
+			isItWorking = 'WORKS';
+			description = 'The mod is up-to-date';
+			entryClass = 'bg-success text-white';
+		  } else if (updateDate > lastMajorUpdate) {
+			entryClass = 'bg-warning';
+			isItWorking = 'MOST LIKELY';
+			description = 'The mod is up-to-date but its latest version is older than the recent ULTRAKILL patch';
+		  } else {
+			entryClass = 'bg-danger text-white';
+			isItWorking = 'UNLIKELY';
+			description = 'The latest mod version is older than the recent major ULTRAKILL release';
+		  }
+		  
           card.innerHTML = `
 			<div class="card shadow-sm album-card ${entryClass}">
 				<img src="${imageUrl}" class="card-img-top" alt="${entry.name}">
